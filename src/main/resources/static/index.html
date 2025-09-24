@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>卫星图管理系统</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f6f8;
+    }
+    h2 {
+      text-align: center;
+      padding: 10px;
+      margin: 0;
+      background: #2c3e50;
+      color: white;
+    }
+    #uploadForm {
+      margin: 15px;
+      padding: 10px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    #uploadForm input, #uploadForm button {
+      padding: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #uploadForm button {
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #uploadForm button:hover {
+      background: #2980b9;
+    }
+    #map {
+      width: 100%;
+      height: 600px;
+      margin-top: 10px;
+    }
+    .thumb {
+      width: 180px;
+      height: auto;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+  </style>
+  <!-- 百度地图 GL 版本 JS (记得替换成你的 AK) -->
+  <script src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak=mpG23F6H4Hx4ZH7RQxpOKpNXfgH86zOY"></script>
+</head>
+<body>
+<h2>卫星图管理系统</h2>
+
+<!--<form id="uploadForm">-->
+<!--  <input type="file" id="file" name="file" required />-->
+<!--  <input type="number" step="0.000001" id="lat" name="lat" placeholder="纬度" required />-->
+<!--  <input type="number" step="0.000001" id="lng" name="lng" placeholder="经度" required />-->
+<!--  <button type="submit">上传图片</button>-->
+<!--</form>-->
+
+<div id="map"></div>
+
+<script>
+  // 初始化地图
+  var map = new BMapGL.Map("map");
+  var center = new BMapGL.Point(116.404, 39.915); // 默认北京
+  map.centerAndZoom(center, 10);
+  map.enableScrollWheelZoom(true);
+
+  // 上传表单事件
+  // document.getElementById("uploadForm").addEventListener("submit", function(e) {
+  //   e.preventDefault();
+  //   var formData = new FormData();
+  //   formData.append("file", document.getElementById("file").files[0]);
+  //   formData.append("lat", document.getElementById("lat").value);
+  //   formData.append("lng", document.getElementById("lng").value);
+  //
+  //   fetch("http://localhost:8090/api/images/upload", {
+  //     method: "POST",
+  //     body: formData
+  //   })
+  //           .then(res => res.json())
+  //           .then(data => {
+  //             alert("上传成功: " + data.filename);
+  //             loadMarkers(); // 上传成功后刷新地图标记
+  //           })
+  //           .catch(err => console.error(err));
+  // });
+
+  // 加载地图范围内的标记
+  function loadMarkers() {
+    var bounds = map.getBounds();
+    var sw = bounds.getSouthWest(); // 左下角
+    var ne = bounds.getNorthEast(); // 右上角
+
+    fetch(`http://localhost:8090/api/images/search?minLat=${sw.lat}&maxLat=${ne.lat}&minLng=${sw.lng}&maxLng=${ne.lng}`)
+            .then(res => res.json())
+            .then(data => {
+              // 清除旧的覆盖物
+              map.clearOverlays();
+
+              data.forEach(img => {
+                var point = new BMapGL.Point(img.lng, img.lat);
+                var marker = new BMapGL.Marker(point);
+                map.addOverlay(marker);
+
+                // 点击 marker 显示缩略图 + 下载按钮
+                var infoContent = `
+            <div>
+              <h4>${img.filename}</h4>
+              <img class="thumb" src="http://localhost:8090/api/images/download/${img.filename}" alt="缩略图"><br/>
+              <a href="http://localhost:8090/api/images/download/${img.filename}" download="${img.filename}">
+                <button style="margin-top:5px;">下载原图</button>
+              </a>
+            </div>
+          `;
+
+                var infoWindow = new BMapGL.InfoWindow(infoContent, {
+                  width: 240,
+                  height: 220,
+                  title: "卫星图详情"
+                });
+
+                marker.addEventListener("click", function() {
+                  map.openInfoWindow(infoWindow, point);
+                });
+              });
+            });
+  }
+
+  // 监听地图拖动/缩放后自动加载标记
+  map.addEventListener("moveend", loadMarkers);
+  map.addEventListener("zoomend", loadMarkers);
+
+  // 初次加载
+  loadMarkers();
+</script>
+</body>
+</html>

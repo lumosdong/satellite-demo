@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>下载卫星图像</title>
+</head>
+<body>
+<h2>下载卫星图像</h2>
+<img id="preview" style="width:400px;"><br>
+<a id="downloadLink" download>点击下载原始图像</a>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+
+    fetch('/api/satellite/' + id)
+        .then(res => res.json())
+        .then(img => {
+            document.getElementById("preview").src = img.imageUrl;
+            document.getElementById("downloadLink").href = img.imageUrl;
+        });
+</script>
+</body>
+</html>
